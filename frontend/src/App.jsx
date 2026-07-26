@@ -36,8 +36,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Authentication Routes (Outside Main Layout) */}
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
         {/* Main Application Layout Route */}
