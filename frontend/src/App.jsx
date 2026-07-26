@@ -3,6 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Expenses from "./pages/Expenses";
+import Budget from "./pages/Budget";
+import Analytics from "./pages/Analytics";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -46,46 +50,10 @@ function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="dashboard"
-            element={
-              <RoutePlaceholder
-                title="Dashboard"
-                icon="📊"
-                description="Dashboard route shell successfully rendered inside Layout."
-              />
-            }
-          />
-          <Route
-            path="expenses"
-            element={
-              <RoutePlaceholder
-                title="Expenses"
-                icon="💳"
-                description="Expenses route shell successfully rendered inside Layout."
-              />
-            }
-          />
-          <Route
-            path="budget"
-            element={
-              <RoutePlaceholder
-                title="Budget"
-                icon="💰"
-                description="Budget route shell successfully rendered inside Layout."
-              />
-            }
-          />
-          <Route
-            path="analytics"
-            element={
-              <RoutePlaceholder
-                title="Analytics"
-                icon="📈"
-                description="Analytics route shell successfully rendered inside Layout."
-              />
-            }
-          />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="budget" element={<Budget />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route
             path="settings"
             element={

@@ -1,13 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from database import Base, engine
 import models
-
 from routers.auth_router import router as auth_router
 from routers.expense_router import router as expense_router
-
 from routers.budget_router import router as budget_router
+from routers.dashboard_router import router as dashboard_router
 
 
 
@@ -32,4 +30,5 @@ def home():
 app.include_router(auth_router)
 app.include_router(expense_router)
 app.include_router(budget_router)
+app.include_router(dashboard_router)
 
