@@ -29,13 +29,17 @@ def create_access_token(data):
     to_encode = data.copy()
 
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
     to_encode.update({"exp": expire})
 
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    print("CREATED TOKEN:")
+    print(token)
+
+    return token
+
 
 security = HTTPBearer()
-
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -43,14 +47,22 @@ def get_current_user(
 ):
     token = credentials.credentials
 
+    print("RECEIVED TOKEN:")
+    print(token)
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        print("DECODED PAYLOAD:")
+        print(payload)
+
         user_id = payload.get("user_id")
 
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-    except JWTError:
+    except Exception as e:
+        print("JWT ERROR:", e)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = db.query(models.User).filter(models.User.id == user_id).first()

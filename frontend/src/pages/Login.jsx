@@ -69,6 +69,9 @@ const Login = () => {
         email: email.trim(),
         password: password,
       });
+      console.log(response.data);
+      localStorage.setItem("token", token);
+      console.log("Saved token:", token);
 
       // Extract JWT token from response
       const token =
