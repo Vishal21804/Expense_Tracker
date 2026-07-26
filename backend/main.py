@@ -7,6 +7,9 @@ import models
 from routers.auth_router import router as auth_router
 from routers.expense_router import router as expense_router
 
+from routers.budget_router import router as budget_router
+
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,4 +31,5 @@ def home():
 
 app.include_router(auth_router)
 app.include_router(expense_router)
+app.include_router(budget_router)
 

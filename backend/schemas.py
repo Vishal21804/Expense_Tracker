@@ -1,5 +1,4 @@
-from pydantic import BaseModel, EmailStr
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 
 class UserRegister(BaseModel):
@@ -27,11 +26,19 @@ class BudgetCreate(BaseModel):
 
 
 class ExpenseResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     title: str
     amount: float
     category: str
     description: str | None = None
     date: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BudgetResponse(BaseModel):
+    id: int
+    category: str
+    amount: float
+
+    model_config = ConfigDict(from_attributes=True)
