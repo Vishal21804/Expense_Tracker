@@ -15,8 +15,10 @@ import {
   Building2,
   Plane,
   Briefcase,
+  Pencil,
 } from "lucide-react";
-import { getGroups } from "../services/expensesApi";
+import { getGroups, updateGroup } from "../services/expensesApi";
+import EditGroupModal, { getGroupColorTheme } from "../components/EditGroupModal";
 
 // Currency Formatter
 const formatCurrency = (amount) => {
@@ -34,6 +36,8 @@ const ExpensesHome = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [editingGroup, setEditingGroup] = useState(null);
+
   const loadGroups = async () => {
     setIsLoading(true);
     try {
@@ -43,6 +47,18 @@ const ExpensesHome = () => {
       console.error("Failed to load groups:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveGroup = async (updatedFields) => {
+    if (!editingGroup) return;
+    try {
+      const updated = await updateGroup(editingGroup.id, updatedFields);
+      if (updated) {
+        setGroups((prev) => prev.map((g) => (g.id === editingGroup.id ? updated : g)));
+      }
+    } catch (err) {
+      console.error("Failed to update group:", err);
     }
   };
 
@@ -71,16 +87,6 @@ const ExpensesHome = () => {
           <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
             Manage personal and shared participant expense groups. Select a group to view expenses.
           </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/groups/bachelor-room/add-expense")}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/35 transition-all focus:outline-none"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Add Expense</span>
-          </button>
         </div>
       </div>
 
@@ -126,26 +132,42 @@ const ExpensesHome = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredGroups.map((group) => (
-            <motion.div
-              key={group.id}
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => navigate(`/groups/${group.id}`)}
-              className="group cursor-pointer p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-violet-500/5 hover:border-violet-300 dark:hover:border-violet-800 transition-all flex flex-col justify-between relative overflow-hidden"
-            >
-              {/* Top Row: Emoji Icon + Participant Pill */}
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white text-2xl flex items-center justify-center shadow-lg shadow-violet-500/25 border border-violet-400/30 group-hover:scale-105 transition-transform duration-200 shrink-0">
-                    {group.icon || "🏠"}
-                  </div>
+          {filteredGroups.map((group) => {
+            const groupTheme = getGroupColorTheme(group.color);
+            return (
+              <motion.div
+                key={group.id}
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => navigate(`/groups/${group.id}`)}
+                className="group cursor-pointer p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-violet-500/5 hover:border-violet-300 dark:hover:border-violet-800 transition-all flex flex-col justify-between relative overflow-hidden"
+              >
+                {/* Top Row: Emoji Icon + Action Buttons */}
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className={`w-13 h-13 rounded-2xl ${groupTheme.bg} ${groupTheme.shadow} text-white text-2xl flex items-center justify-center shadow-lg border border-white/20 group-hover:scale-105 transition-transform duration-200 shrink-0`}>
+                      {group.icon || "🏠"}
+                    </div>
 
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
-                    <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                    <span>{group.membersCount || group.members?.length || 4} Participants</span>
-                  </span>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGroup(group);
+                        }}
+                        title="Edit Group"
+                        className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-violet-100 dark:hover:bg-violet-950/80 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+
+                      <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                        <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                        <span>{group.membersCount || group.members?.length || 4} Participants</span>
+                      </span>
+                    </div>
+                  </div>
 
                 {/* Title & Description */}
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
@@ -212,9 +234,18 @@ const ExpensesHome = () => {
               </div>
 
             </motion.div>
-          ))}
+          );
+        })}
         </div>
       )}
+
+      {/* EDIT GROUP MODAL */}
+      <EditGroupModal
+        isOpen={!!editingGroup}
+        onClose={() => setEditingGroup(null)}
+        group={editingGroup}
+        onSave={handleSaveGroup}
+      />
 
     </div>
   );

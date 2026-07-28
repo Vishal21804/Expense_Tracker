@@ -34,7 +34,11 @@ import {
   getGroupById,
   getExpensesByGroup,
   deleteExpense,
+  updateGroup,
+  updateGroupMembers,
 } from "../services/expensesApi";
+import EditGroupModal, { getGroupColorTheme } from "../components/EditGroupModal";
+import EditParticipantsModal from "../components/EditParticipantsModal";
 
 // Category configurations
 const CATEGORIES = [
@@ -129,6 +133,10 @@ const GroupExpensePage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
 
+  // Edit Group & Participants Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false);
+
   // Toast State
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
@@ -143,6 +151,32 @@ const GroupExpensePage = () => {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveGroup = async (updatedFields) => {
+    try {
+      const updated = await updateGroup(groupId, updatedFields);
+      if (updated) {
+        setGroup(updated);
+        showToast("Group updated successfully!", "success");
+      }
+    } catch (err) {
+      console.error("Failed to update group:", err);
+      showToast("Failed to update group", "error");
+    }
+  };
+
+  const handleSaveParticipants = async (updatedMembers) => {
+    try {
+      const updated = await updateGroupMembers(groupId, updatedMembers);
+      if (updated) {
+        setGroup(updated);
+        showToast("Participants updated successfully!", "success");
+      }
+    } catch (err) {
+      console.error("Failed to update participants:", err);
+      showToast("Failed to update participants", "error");
     }
   };
 
@@ -273,29 +307,43 @@ const GroupExpensePage = () => {
       </div>
 
       {/* GROUP HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white text-2xl flex items-center justify-center shadow-lg shadow-violet-500/25 border border-violet-400/30">
-            {group?.icon || "🏠"}
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {group?.name || "Bachelor Room"}
-            </h1>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-              {group?.description || "Shared group expense management and settlement tracking."}
-            </p>
-          </div>
-        </div>
+      {(() => {
+        const groupTheme = getGroupColorTheme(group?.color);
+        return (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-start gap-4">
+              <div className={`w-14 h-14 rounded-2xl ${groupTheme.bg} ${groupTheme.shadow} text-white text-2xl flex items-center justify-center shadow-lg border border-white/20 shrink-0`}>
+                {group?.icon || "🏠"}
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  {group?.name || "Bachelor Room"}
+                </h1>
+                <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
+                  {group?.description || "Shared group expense management and settlement tracking."}
+                </p>
+              </div>
+            </div>
 
-        <button
-          onClick={() => navigate(`/groups/${groupId}/add-expense`)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/35 transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>+ Add Expense</span>
-        </button>
-      </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer shadow-xs"
+              >
+                <Pencil className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <span>Edit Group</span>
+              </button>
+              <button
+                onClick={() => navigate(`/groups/${groupId}/add-expense`)}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/35 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Add Expense</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* GROUP SUMMARY CARDS (4 Stats) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -328,24 +376,37 @@ const GroupExpensePage = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Active Participants</span>
-            <div className="p-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400">
-              <Users className="w-4 h-4" />
-            </div>
+            <button
+              onClick={() => setIsParticipantsModalOpen(true)}
+              className="px-2 py-1 rounded-xl bg-violet-50 dark:bg-violet-950/60 hover:bg-violet-100 dark:hover:bg-violet-900/80 text-violet-600 dark:text-violet-400 font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Pencil className="w-3 h-3" />
+              <span>Edit</span>
+            </button>
           </div>
           <div className="flex items-center justify-between">
             <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
               {group?.membersCount || group?.members?.length || 4} Active
             </h3>
-            <div className="flex items-center -space-x-1.5 overflow-hidden">
+            <div
+              onClick={() => setIsParticipantsModalOpen(true)}
+              className="flex items-center -space-x-1.5 overflow-hidden cursor-pointer hover:scale-105 transition-transform"
+              title="Manage Group Participants"
+            >
               {(group?.members || [{ name: "Alex Morgan" }, { name: "Hari" }, { name: "Balaji" }, { name: "Sedhu" }]).slice(0, 4).map((m, i) => (
                 <div
-                  key={m.name || i}
+                  key={m.id || m.name || i}
                   className="w-7 h-7 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-500 text-white font-extrabold text-[10px] flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-xs"
                   title={m.name}
                 >
-                  {m.name.substring(0, 2).toUpperCase()}
+                  {m.avatarEmoji ? m.avatarEmoji : (m.avatar || (m.name ? m.name.substring(0, 2).toUpperCase() : "M"))}
                 </div>
               ))}
+              {(group?.members || []).length > 4 && (
+                <div className="w-7 h-7 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-[9px] flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  +{(group?.members || []).length - 4}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -373,7 +434,7 @@ const GroupExpensePage = () => {
         </div>
 
         {/* Filter Pills */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           
           {/* Category */}
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
@@ -419,22 +480,6 @@ const GroupExpensePage = () => {
               <option value="This Month">This Month</option>
             </select>
           </div>
-
-          {/* Status */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-            <span className="font-bold text-slate-400 shrink-0">Status:</span>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-transparent font-semibold text-slate-700 dark:text-slate-200 focus:outline-none"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Paid">Paid</option>
-              <option value="Pending">Pending</option>
-              <option value="Settled">Settled</option>
-            </select>
-          </div>
-
         </div>
       </div>
 
@@ -469,9 +514,7 @@ const GroupExpensePage = () => {
                     <th className="py-3.5 px-4">Category</th>
                     <th className="py-3.5 px-4">Paid By</th>
                     <th className="py-3.5 px-4">Amount</th>
-                    <th className="py-3.5 px-4">Split</th>
                     <th className="py-3.5 px-4">Date</th>
-                    <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -508,16 +551,8 @@ const GroupExpensePage = () => {
                         {formatCurrency(exp.amount)}
                       </td>
 
-                      <td className="py-4 px-4 text-slate-500 dark:text-slate-400">
-                        {exp.splitMethod}
-                      </td>
-
                       <td className="py-4 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatDate(exp.date)}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <StatusBadge status={exp.status} />
                       </td>
 
                       <td className="py-4 px-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -609,73 +644,200 @@ const GroupExpensePage = () => {
         </>
       )}
 
-      {/* DETAILS DRAWER */}
+      {/* EXPENSE DETAILS FULL CENTER MODAL */}
       <AnimatePresence>
         {isDrawerOpen && selectedExpense && (
-          <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsDrawerOpen(false)}
-              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            />
-
-            <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-              <motion.div
-                initial={{ x: "100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 250 }}
-                className="w-screen max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200/80 dark:border-slate-800 flex flex-col"
-              >
-                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Expense Details</h2>
-                  <button onClick={() => setIsDrawerOpen(false)} className="p-1 rounded-xl text-slate-400 hover:bg-slate-100">
-                    <X className="w-5 h-5" />
-                  </button>
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8"
+            >
+              {/* MODAL HEADER */}
+              <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400">
+                    <ReceiptText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                      Expense Details & Breakdown
+                    </h2>
+                    <p className="text-xs font-semibold text-slate-400">
+                      Full view of who paid and who owes how much
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-50 via-purple-50 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-violet-100 dark:border-slate-700 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <CategoryBadge category={selectedExpense.category} />
-                      <StatusBadge status={selectedExpense.status} />
-                    </div>
-                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white pt-1">{selectedExpense.title}</h3>
-                    <div className="text-2xl font-black text-violet-600 dark:text-violet-400">{formatCurrency(selectedExpense.amount)}</div>
+                <button
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* MODAL BODY */}
+              <div className="p-6 space-y-6 max-h-[78vh] overflow-y-auto">
+                
+                {/* HERO AMOUNT CARD */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white shadow-xl shadow-violet-500/20 relative overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <CategoryBadge category={selectedExpense.category} />
+                    <StatusBadge status={selectedExpense.status} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                      <span className="text-slate-400 block text-[10px]">Paid By</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{selectedExpense.paidBy}</span>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                      <span className="text-slate-400 block text-[10px]">Paid From</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{selectedExpense.paidFromAccount}</span>
-                    </div>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-2">
+                    {selectedExpense.title}
+                  </h3>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl sm:text-4xl font-black text-white">
+                      {formatCurrency(selectedExpense.amount)}
+                    </span>
+                    <span className="text-xs font-bold text-violet-200 uppercase tracking-wider">
+                      Total Expense
+                    </span>
+                  </div>
+                </div>
+
+                {/* DETAILS GRID (4 Stats) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Paid By</span>
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5 block truncate">
+                      {selectedExpense.paidBy || "Alex Morgan"}
+                    </span>
                   </div>
 
-                  {/* Participant Shares Breakdown */}
-                  <div className="space-y-2 pt-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Participant Shares Breakdown</span>
-                    <div className="space-y-2">
-                      {(selectedExpense.members || [{ name: "Alex Morgan", shareAmount: selectedExpense.amount / 4, status: "Paid" }, { name: "Hari", shareAmount: selectedExpense.amount / 4, status: "Pending" }, { name: "Balaji", shareAmount: selectedExpense.amount / 4, status: "Paid" }, { name: "Sedhu", shareAmount: selectedExpense.amount / 4, status: "Pending" }]).map((m) => (
-                        <div key={m.name} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-900 dark:text-white">{m.name}</span>
-                          <div className="text-right">
-                            <span className="font-black text-slate-900 dark:text-white block">{formatCurrency(m.shareAmount)}</span>
-                            <span className={`text-[10px] font-bold ${m.status === "Paid" ? "text-emerald-600" : "text-amber-600"}`}>{m.status}</span>
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Payment Account</span>
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5 block truncate">
+                      {selectedExpense.paidFromAccount || "Cash"}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Split Method</span>
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5 block truncate">
+                      {selectedExpense.splitMethod || "Equal"}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date</span>
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5 block truncate">
+                      {formatDate(selectedExpense.date)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* DESCRIPTION (if any) */}
+                {selectedExpense.description && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Notes & Description</span>
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {selectedExpense.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* BILL RECEIPT IMAGE (if any) */}
+                {selectedExpense.billImageUrl && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Attached Receipt / Bill</span>
+                    <img
+                      src={selectedExpense.billImageUrl}
+                      alt="Bill receipt"
+                      className="w-full max-h-56 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs"
+                    />
+                  </div>
+                )}
+
+                {/* PARTICIPANT SHARES BREAKDOWN GRID ("WHO OWES HOW MUCH") */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-violet-500" />
+                      <span>Who Owes How Much</span>
+                    </h4>
+                    <span className="text-xs font-bold text-slate-400">
+                      {(selectedExpense.members || []).length || (group?.members || []).length} Participants
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(selectedExpense.members || (group?.members || []).map((m) => ({
+                      name: m.name,
+                      shareAmount: selectedExpense.amount / ((group?.members || []).length || 1),
+                      percentage: 100 / ((group?.members || []).length || 1),
+                      status: m.name === selectedExpense.paidBy ? "Paid" : "Pending",
+                    }))).map((m, idx) => {
+                      const groupMember = (group?.members || []).find((gm) => gm.name === m.name);
+                      const isPayer = m.name === selectedExpense.paidBy || m.status === "Paid";
+                      const shareAmt = Number(m.shareAmount ?? (selectedExpense.amount / (selectedExpense.members?.length || 1)));
+
+                      return (
+                        <div
+                          key={m.name || idx}
+                          className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* AVATAR BADGE / PHOTO */}
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-500 text-white font-extrabold text-xs flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xs shrink-0 overflow-hidden">
+                              {groupMember?.avatarUrl ? (
+                                <img src={groupMember.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
+                              ) : groupMember?.avatarEmoji ? (
+                                <span className="text-base">{groupMember.avatarEmoji}</span>
+                              ) : (
+                                <span>{m.name.substring(0, 2).toUpperCase()}</span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate block">
+                                {m.name}
+                              </span>
+                              <span className="text-[10px] font-semibold text-slate-400 block">
+                                {m.name === selectedExpense.paidBy ? "Paid the full bill" : "Participant portion"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-sm font-black text-slate-900 dark:text-white block">
+                              {formatCurrency(shareAmt)}
+                            </span>
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isPayer
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300"
+                              }`}
+                            >
+                              {isPayer ? "Paid" : "Owes Share"}
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-              </motion.div>
-            </div>
+              </div>
+
+              {/* FOOTER */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-end">
+                <button
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="px-6 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-violet-500/20 transition-all cursor-pointer"
+                >
+                  Close Details
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -700,6 +862,22 @@ const GroupExpensePage = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* EDIT GROUP MODAL */}
+      <EditGroupModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        group={group}
+        onSave={handleSaveGroup}
+      />
+
+      {/* EDIT PARTICIPANTS MODAL */}
+      <EditParticipantsModal
+        isOpen={isParticipantsModalOpen}
+        onClose={() => setIsParticipantsModalOpen(false)}
+        group={group}
+        onSave={handleSaveParticipants}
+      />
 
     </div>
   );

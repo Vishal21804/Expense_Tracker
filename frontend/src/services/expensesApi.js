@@ -183,6 +183,7 @@ export const mapGroupFromBackend = (g) => {
     name: g.name || g.group_name || "Group",
     type: g.type || g.group_type || "General",
     icon: g.icon || "👥",
+    color: g.color || "violet",
     membersCount: Number(g.members_count ?? g.membersCount ?? (g.members ? g.members.length : 4)),
     members: Array.isArray(g.members) ? g.members : [],
     totalExpenses: Number(g.total_expenses ?? g.totalExpenses ?? 0),
@@ -341,4 +342,30 @@ export const deleteExpense = async (id) => {
     saveStoredExpenses(updated);
     return true;
   }
+};
+
+export const updateGroup = async (groupId, groupData) => {
+  try {
+    const response = await api.put(`/groups/${groupId}`, groupData);
+    return mapGroupFromBackend(response.data);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const allGroups = getStoredGroups();
+    const updatedGroups = allGroups.map((g) => {
+      if (String(g.id) === String(groupId)) {
+        return {
+          ...g,
+          ...groupData,
+        };
+      }
+      return g;
+    });
+    saveStoredGroups(updatedGroups);
+    return updatedGroups.find((g) => String(g.id) === String(groupId));
+  }
+};
+
+export const updateGroupMembers = async (groupId, members) => {
+  const membersCount = Array.isArray(members) ? members.length : 0;
+  return updateGroup(groupId, { members, membersCount });
 };
