@@ -5,6 +5,7 @@ import {
   LuLayoutDashboard,
   LuReceipt,
   LuWallet,
+  LuCreditCard,
   LuChartPie,
   LuSettings,
   LuLogOut,
@@ -20,33 +21,31 @@ const NAV_ITEMS = [
     name: "Dashboard",
     path: "/dashboard",
     icon: LuLayoutDashboard,
-    badge: null,
+  },
+  {
+    name: "Accounts",
+    path: "/accounts",
+    icon: LuCreditCard,
   },
   {
     name: "Expenses",
     path: "/expenses",
     icon: LuReceipt,
-    badge: "12 New",
-    badgeColor: "bg-violet-100 text-violet-700 border-violet-200",
   },
   {
     name: "Budget",
     path: "/budget",
     icon: LuWallet,
-    badge: null,
   },
   {
     name: "Analytics",
     path: "/analytics",
     icon: LuChartPie,
-    badge: "Pro",
-    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
   },
   {
     name: "Settings",
     path: "/settings",
     icon: LuSettings,
-    badge: null,
   },
 ];
 
@@ -75,9 +74,9 @@ const Sidebar = ({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200/80 shadow-sm select-none relative overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0F172A] border-r border-slate-800 shadow-sm select-none relative overflow-hidden text-slate-100">
       {/* Brand Header */}
-      <div className="flex items-center justify-between h-20 px-5 border-b border-slate-100">
+      <div className="flex items-center justify-between h-20 px-5 border-b border-slate-800">
         <NavLink
           to="/"
           className="flex items-center gap-3.5 group focus:outline-none"
@@ -100,11 +99,8 @@ const Sidebar = ({
                 className="flex flex-col overflow-hidden"
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-violet-950 bg-clip-text text-transparent">
+                  <span className="font-extrabold text-lg tracking-tight text-white">
                     VaultFlow
-                  </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-full bg-violet-100 text-violet-700 border border-violet-200/60">
-                    Pro
                   </span>
                 </div>
                 <span className="text-[11px] font-medium text-slate-400 tracking-wide uppercase">
@@ -119,7 +115,7 @@ const Sidebar = ({
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="hidden lg:flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+          className="hidden lg:flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/30"
         >
           {isCollapsed ? (
             <LuChevronRight className="w-4 h-4" />
@@ -233,28 +229,27 @@ const Sidebar = ({
         })}
       </div>
 
-      {/* Pro Banner Card (Visible when expanded on Desktop) */}
+      {/* Monthly Budget Card (Theme-based Dark Glass) */}
       {!isCollapsed && (
-        <div className="p-3 mx-3 my-2 rounded-2xl bg-gradient-to-br from-violet-50 via-purple-50 to-slate-50 border border-violet-100 shadow-sm relative overflow-hidden">
-          <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-gradient-to-br from-violet-400/20 to-purple-500/20 rounded-full blur-xl pointer-events-none" />
+        <div className="p-3.5 mx-3 my-2 rounded-2xl bg-[#1E293B]/70 border border-slate-700/80 shadow-sm relative overflow-hidden">
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="p-1.5 rounded-lg bg-violet-600 text-white">
+            <div className="p-1.5 rounded-lg bg-violet-600/30 border border-violet-500/40 text-violet-400">
               <LuZap className="w-3.5 h-3.5" />
             </div>
-            <span className="text-xs font-bold text-slate-800">
+            <span className="text-xs font-extrabold text-slate-200">
               Monthly Budget
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mb-2">
-            You've spent <strong className="text-slate-800 font-semibold">$3,420</strong> of $5,000 budget.
+          <p className="text-[11px] text-slate-400 mb-2">
+            You've spent <strong className="text-violet-400 font-black">₹3,420</strong> of ₹5,000 budget.
           </p>
-          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2">
+          <div className="w-full h-1.5 bg-[#0F172A] rounded-full overflow-hidden mb-2 border border-slate-700/50">
             <div
               className="h-full bg-gradient-to-r from-violet-600 to-purple-500 rounded-full"
               style={{ width: "68%" }}
             />
           </div>
-          <span className="text-[10px] font-bold text-violet-700 bg-violet-100/80 px-2 py-0.5 rounded-md inline-block">
+          <span className="text-[10px] font-bold text-violet-300 bg-violet-950/70 border border-violet-800/80 px-2 py-0.5 rounded-md inline-block">
             68% Limit Reached
           </span>
         </div>

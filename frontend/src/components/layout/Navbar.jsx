@@ -14,6 +14,8 @@ import {
   LuChevronDown,
   LuX,
   LuSparkles,
+  LuSun,
+  LuMoon,
 } from "react-icons/lu";
 
 // Sample Notifications Data for demonstration
@@ -54,6 +56,27 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return (
+      document.documentElement.classList.contains("dark") ||
+      localStorage.getItem("theme") === "dark"
+    );
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => !prev);
+  };
 
   // Unread notifications count
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -104,24 +127,24 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full glass-nav bg-white/85 backdrop-blur-xl border-b border-slate-200/80 transition-all duration-300">
+    <header className="sticky top-0 z-30 w-full glass-nav bg-[#0F172A]/90 dark:bg-[#0F172A]/90 backdrop-blur-xl border-b border-slate-800 transition-all duration-300">
       <div className="flex items-center justify-between h-20 px-4 sm:px-6 lg:px-8">
         
         {/* Left Side: Mobile Hamburger & Page Context / Welcome Greeting */}
         <div className="flex items-center gap-3 sm:gap-4">
           <button
             onClick={onMobileMenuToggle}
-            className="lg:hidden flex items-center justify-center p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none transition-colors"
+            className="lg:hidden flex items-center justify-center p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none transition-colors"
             aria-label="Open sidebar menu"
           >
             <LuMenu className="w-6 h-6" />
           </button>
 
           <div className="flex flex-col">
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-tight">
               {getPageTitle()}
             </h1>
-            <p className="text-xs text-slate-500 font-medium hidden sm:block">
+            <p className="text-xs text-slate-400 font-medium hidden sm:block">
               {getGreeting()}
             </p>
           </div>
@@ -132,8 +155,8 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
           <div
             className={`relative flex items-center w-full transition-all duration-200 rounded-2xl ${
               isSearchFocused
-                ? "bg-white ring-2 ring-violet-500/40 shadow-lg shadow-violet-500/5"
-                : "bg-slate-100/80 hover:bg-slate-100"
+                ? "bg-[#1F2937] ring-2 ring-violet-500/40 shadow-lg shadow-violet-500/10"
+                : "bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
             <div className="pl-4 text-slate-400">
@@ -146,17 +169,17 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               placeholder="Search transactions, bills, categories..."
-              className="w-full py-2.5 pl-3 pr-10 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
+              className="w-full py-2.5 pl-3 pr-10 text-xs sm:text-sm text-white placeholder-slate-400 bg-transparent focus:outline-none"
             />
             {searchQuery ? (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 text-slate-400 hover:text-white"
               >
                 <LuX className="w-4 h-4" />
               </button>
             ) : (
-              <div className="absolute right-3 hidden sm:flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-slate-400 bg-white border border-slate-200 rounded-md shadow-xs pointer-events-none">
+              <div className="absolute right-3 hidden sm:flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-900 border border-slate-700 rounded-md shadow-xs pointer-events-none">
                 <span>⌘K</span>
               </div>
             )}
@@ -175,6 +198,20 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
           {/* Search Icon button for Mobile */}
           <button className="md:hidden flex items-center justify-center p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
             <LuSearch className="w-5 h-5" />
+          </button>
+
+          {/* Global Theme Toggle (Dark / Light) */}
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+            aria-label="Toggle Theme"
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDarkMode ? (
+              <LuSun className="w-5 h-5 text-amber-400" />
+            ) : (
+              <LuMoon className="w-5 h-5 text-slate-600" />
+            )}
           </button>
 
           {/* Notifications Dropdown */}
@@ -294,7 +331,7 @@ const Navbar = ({ onMobileMenuToggle, isCollapsed, userName = "Alex" }) => {
                   Alex Morgan
                 </span>
                 <span className="text-[11px] font-medium text-slate-400 leading-tight">
-                  Pro Plan
+                  Member
                 </span>
               </div>
 

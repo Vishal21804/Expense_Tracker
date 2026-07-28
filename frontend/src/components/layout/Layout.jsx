@@ -9,8 +9,11 @@ const Layout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
 
+  const isAddExpensePage =
+    location.pathname.includes("add-expense") || location.pathname.includes("/add");
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col antialiased selection:bg-violet-500 selection:text-white relative">
+    <div className="min-h-screen bg-[#0F172A] text-slate-100 font-sans flex flex-col antialiased selection:bg-violet-500 selection:text-white relative">
       
       {/* Sidebar Component */}
       <Sidebar
@@ -20,20 +23,28 @@ const Layout = () => {
         setIsMobileOpen={setIsMobileSidebarOpen}
       />
 
-      {/* Main Layout Container (adjusts left margin dynamically based on sidebar state) */}
+      {/* Main Layout Container */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
         }`}
       >
-        {/* Top Navbar */}
-        <Navbar
-          isCollapsed={isSidebarCollapsed}
-          onMobileMenuToggle={() => setIsMobileSidebarOpen(true)}
-        />
+        {/* Top Navbar - Hidden on Add Expense Page */}
+        {!isAddExpensePage && (
+          <Navbar
+            isCollapsed={isSidebarCollapsed}
+            onMobileMenuToggle={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
 
-        {/* Scrollable Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto overflow-y-auto">
+        {/* Main Content Area */}
+        <main
+          className={`flex-1 w-full mx-auto overflow-y-auto ${
+            isAddExpensePage
+              ? "p-3 sm:p-4 lg:p-5 max-w-7xl"
+              : "p-4 sm:p-6 lg:p-8 max-w-7xl"
+          }`}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -48,14 +59,16 @@ const Layout = () => {
           </AnimatePresence>
         </main>
 
-        {/* Optional Minimal Application Shell Footer */}
-        <footer className="py-4 px-6 border-t border-slate-200/60 bg-white/50 backdrop-blur-sm text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 max-w-7xl w-full mx-auto">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>VaultFlow System Operational</span>
-          </div>
-          <p>© {new Date().getFullYear()} VaultFlow Expense Tracker. All rights reserved.</p>
-        </footer>
+        {/* Footer (hidden on add-expense page to keep sticky action bar clean) */}
+        {!location.pathname.includes("add-expense") && !location.pathname.includes("/add") && (
+          <footer className="py-4 px-6 border-t border-slate-800 bg-[#0F172A] text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 max-w-7xl w-full mx-auto">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>VaultFlow System Operational</span>
+            </div>
+            <p>© {new Date().getFullYear()} VaultFlow Expense Tracker. All rights reserved.</p>
+          </footer>
+        )}
       </div>
 
     </div>
