@@ -31,12 +31,11 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
-  getGroupById,
   getExpensesByGroup,
   deleteExpense,
-  updateGroup,
   updateGroupMembers,
 } from "../services/expensesApi";
+import { getGroup, getMembers, updateGroup, deleteGroup } from "../services/groupsApi";
 import EditGroupModal, { getGroupColorTheme } from "../components/EditGroupModal";
 import EditParticipantsModal from "../components/EditParticipantsModal";
 
@@ -143,12 +142,24 @@ const GroupExpensePage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const gData = await getGroupById(groupId);
-      setGroup(gData);
+      const gData = await getGroup(groupId);
+      let membersData = [];
+      try {
+        membersData = await getMembers(groupId);
+      } catch (mErr) {
+        console.error("Failed to load members:", mErr);
+      }
+      const combinedGroup = {
+        ...gData,
+        members: membersData && membersData.length > 0 ? membersData : gData?.members || [],
+        membersCount: membersData && membersData.length > 0 ? membersData.length : (gData?.membersCount || 1),
+      };
+      setGroup(combinedGroup);
       const expData = await getExpensesByGroup(groupId);
       setExpenses(Array.isArray(expData) ? expData : []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load group details:", err);
+      showToast("Failed to load group details", "error");
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +175,17 @@ const GroupExpensePage = () => {
     } catch (err) {
       console.error("Failed to update group:", err);
       showToast("Failed to update group", "error");
+    }
+  };
+
+  const handleDeleteGroup = async (targetGroupId) => {
+    try {
+      await deleteGroup(targetGroupId || groupId);
+      showToast("Group deleted successfully!", "success");
+      navigate("/expenses");
+    } catch (err) {
+      console.error("Failed to delete group:", err);
+      showToast("Failed to delete group", "error");
     }
   };
 
@@ -869,6 +891,7 @@ const GroupExpensePage = () => {
         onClose={() => setIsEditModalOpen(false)}
         group={group}
         onSave={handleSaveGroup}
+        onDelete={handleDeleteGroup}
       />
 
       {/* EDIT PARTICIPANTS MODAL */}

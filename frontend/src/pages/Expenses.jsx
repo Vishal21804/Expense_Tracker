@@ -16,9 +16,13 @@ import {
   Plane,
   Briefcase,
   Pencil,
+  FolderPlus,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
-import { getGroups, updateGroup } from "../services/expensesApi";
+import { getGroups, updateGroup, createGroup, deleteGroup } from "../services/groupsApi";
 import EditGroupModal, { getGroupColorTheme } from "../components/EditGroupModal";
+import CreateGroupModal from "../components/CreateGroupModal";
 
 // Currency Formatter
 const formatCurrency = (amount) => {
@@ -37,6 +41,15 @@ const ExpensesHome = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [editingGroup, setEditingGroup] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3500);
+  };
 
   const loadGroups = async () => {
     setIsLoading(true);
@@ -45,6 +58,7 @@ const ExpensesHome = () => {
       setGroups(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load groups:", err);
+      showToast("Failed to load groups from server", "error");
     } finally {
       setIsLoading(false);
     }
@@ -56,9 +70,37 @@ const ExpensesHome = () => {
       const updated = await updateGroup(editingGroup.id, updatedFields);
       if (updated) {
         setGroups((prev) => prev.map((g) => (g.id === editingGroup.id ? updated : g)));
+        showToast("Group updated successfully!", "success");
       }
     } catch (err) {
       console.error("Failed to update group:", err);
+      showToast(err.response?.data?.message || err.message || "Failed to update group", "error");
+    }
+  };
+
+  const handleCreateGroup = async (groupData) => {
+    try {
+      const newGroup = await createGroup(groupData);
+      if (newGroup) {
+        setGroups((prev) => [newGroup, ...prev]);
+        showToast("Group created successfully!", "success");
+        return newGroup;
+      }
+    } catch (err) {
+      console.error("Failed to create group:", err);
+      showToast(err.response?.data?.message || err.message || "Failed to create group", "error");
+      throw err;
+    }
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    try {
+      await deleteGroup(groupId);
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      showToast("Group deleted successfully!", "success");
+    } catch (err) {
+      console.error("Failed to delete group:", err);
+      showToast("Failed to delete group", "error");
     }
   };
 
@@ -87,6 +129,16 @@ const ExpensesHome = () => {
           <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
             Manage personal and shared participant expense groups. Select a group to view expenses.
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/35 transition-all focus:outline-none cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Create Group</span>
+          </button>
         </div>
       </div>
 
@@ -164,10 +216,33 @@ const ExpensesHome = () => {
 
                       <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
                         <Users className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                        <span>{group.membersCount || group.members?.length || 4} Participants</span>
+                        <span>
+                          {Array.isArray(group.members) && group.members.length > 0
+                            ? group.members.length
+                            : Number(group.membersCount || 1)}{" "}
+                          {Number(
+                            Array.isArray(group.members) && group.members.length > 0
+                              ? group.members.length
+                              : group.membersCount || 1
+                          ) === 1
+                            ? "Participant"
+                            : "Participants"}
+                        </span>
                       </span>
                     </div>
                   </div>
+
+                {/* Category & Created Date Badge */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40">
+                    {group.category || group.type || "General"}
+                  </span>
+                  {group.createdAt && (
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      Created {new Date(group.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </div>
 
                 {/* Title & Description */}
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
@@ -180,18 +255,31 @@ const ExpensesHome = () => {
                 {/* Member Avatar Stack Preview & Active Participants */}
                 <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 min-w-0">
                   <div className="flex items-center -space-x-2 shrink-0">
-                    {(group.members || []).slice(0, 4).map((m, idx) => (
+                    {(Array.isArray(group.members) && group.members.length > 0
+                      ? group.members
+                      : Array.from({ length: Math.min(Number(group.membersCount || 1), 4) }, (_, i) => ({
+                          id: `p-${i}`,
+                          name: i === 0 ? "Me (You)" : `Member ${i + 1}`,
+                          avatar: i === 0 ? "ME" : `M${i + 1}`,
+                        }))
+                    ).slice(0, 4).map((m, idx) => (
                       <div
                         key={m.id || idx}
-                        className="w-7 h-7 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-500 text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-xs"
+                        className="w-7 h-7 rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-500 text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-xs overflow-hidden"
                         title={m.name}
                       >
-                        {m.avatar || m.name?.substring(0, 2).toUpperCase() || "M"}
+                        {m.avatarUrl ? (
+                          <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
+                        ) : m.avatarEmoji ? (
+                          <span className="text-xs">{m.avatarEmoji}</span>
+                        ) : (
+                          m.avatar || m.name?.substring(0, 2).toUpperCase() || "ME"
+                        )}
                       </div>
                     ))}
-                    {(group.members || []).length > 4 && (
+                    {(Array.isArray(group.members) && group.members.length > 4) && (
                       <div className="w-7 h-7 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-extrabold flex items-center justify-center border-2 border-white dark:border-slate-900">
-                        +{(group.members || []).length - 4}
+                        +{group.members.length - 4}
                       </div>
                     )}
                   </div>
@@ -245,7 +333,35 @@ const ExpensesHome = () => {
         onClose={() => setEditingGroup(null)}
         group={editingGroup}
         onSave={handleSaveGroup}
+        onDelete={handleDeleteGroup}
       />
+
+      {/* CREATE GROUP MODAL */}
+      <CreateGroupModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateGroup}
+      />
+
+      {/* TOAST NOTIFICATION BANNER */}
+      {toast.show && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-xs font-extrabold text-white ${
+              toast.type === "success"
+                ? "bg-emerald-600 border-emerald-500 shadow-emerald-600/20"
+                : "bg-rose-600 border-rose-500 shadow-rose-600/20"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <AlertTriangle className="w-4 h-4" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
 
     </div>
   );

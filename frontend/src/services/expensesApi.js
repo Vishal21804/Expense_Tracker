@@ -369,3 +369,30 @@ export const updateGroupMembers = async (groupId, members) => {
   const membersCount = Array.isArray(members) ? members.length : 0;
   return updateGroup(groupId, { members, membersCount });
 };
+
+export const createGroup = async (groupData) => {
+  try {
+    const response = await api.post("/groups", groupData);
+    return mapGroupFromBackend(response.data);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const allGroups = getStoredGroups();
+    const slug = (groupData.name || "new-group").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const newGroup = {
+      id: `${slug}-${Date.now().toString(36).substring(2, 6)}`,
+      name: groupData.name || "New Group",
+      type: groupData.type || "General",
+      icon: groupData.icon || "👥",
+      color: groupData.color || "violet",
+      membersCount: Array.isArray(groupData.members) ? groupData.members.length : 1,
+      members: Array.isArray(groupData.members) ? groupData.members : [],
+      totalExpenses: 0,
+      pendingSettlement: 0,
+      expensesCount: 0,
+      description: groupData.description || "",
+    };
+    const updatedGroups = [newGroup, ...allGroups];
+    saveStoredGroups(updatedGroups);
+    return newGroup;
+  }
+};

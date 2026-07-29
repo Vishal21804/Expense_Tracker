@@ -13,7 +13,13 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
 
-    expenses = relationship("Expense", back_populates="user", cascade="all, delete")
+    expenses = relationship(
+        "Expense",
+        back_populates="user",
+        cascade="all, delete",
+        foreign_keys="Expense.user_id"
+        )
+    
     budgets = relationship("Budget", back_populates="user", cascade="all, delete")
 
 
@@ -27,9 +33,30 @@ class Expense(Base):
     description = Column(String(255))
     date = Column(String(20))
 
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("User", back_populates="expenses")
+    # NEW COLUMNS
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    paid_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    split_method = Column(String(30), default="Equal")
+    status = Column(String(30), default="Pending")
+
+    # RELATIONSHIPS
+    user = relationship(
+        "User",
+        back_populates="expenses",
+        foreign_keys=[user_id]
+    )
+
+    group = relationship("Group")
+
+    payer = relationship(
+        "User",
+        foreign_keys=[paid_by]
+    )
+
+    account = relationship("Account")
 
 
 class Budget(Base):
@@ -64,4 +91,53 @@ class Account(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="accounts")
+
+class Group(Base):
+    __tablename__ = "groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(100), nullable=False)
+
+    description = Column(String(500))
+
+    category = Column(String(50), default="General")
+
+    icon = Column(String(20), default="🏠")
+
+    theme_color = Column(String(30), default="purple")
+
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    creator = relationship(
+        "User",
+        foreign_keys=[created_by]
+    )
+
+    members = relationship(
+        "GroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        lazy="joined"
+    )
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    group = relationship("Group", back_populates="members")
+    user = relationship(
+        "User",
+        foreign_keys=[user_id]
+        )
+
+
 

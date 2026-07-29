@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Pencil, Trash2, Check, UserPlus, Users, Upload, Camera, Image as ImageIcon } from "lucide-react";
+import { X, Plus, Pencil, Trash2, Check, UserPlus, Users, Upload, Camera, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { addMember, removeMember } from "../services/groupsApi";
 
 export const AVATAR_PRESETS = [
   "👨‍💻", "👩", "🧔", "👦", "👧", "🧑‍🍳", "🐱", "🦊", "🐶", "🚀", "👑", "⚡", "🍕", "🎯", "🎨", "🕶️", "🎧", "🌟"
@@ -73,18 +74,35 @@ export default function EditParticipantsModal({ isOpen, onClose, group, onSave }
     }
   };
 
-  const handleAddParticipant = (e) => {
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleAddParticipant = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
+    setErrorMessage("");
     const trimmed = newName.trim();
+    const email = trimmed.includes("@")
+      ? trimmed
+      : `${trimmed.toLowerCase().replace(/\s+/g, ".")}@vaultflow.io`;
+
+    if (group?.id) {
+      try {
+        await addMember(group.id, email);
+      } catch (err) {
+        console.error("POST /members error:", err);
+        setErrorMessage(err.response?.data?.detail || err.response?.data?.message || err.message || "Failed to add member");
+        return;
+      }
+    }
+
     const newMember = {
       id: `m-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: trimmed,
+      name: trimmed.includes("@") ? trimmed.split("@")[0] : trimmed,
       avatar: getInitials(trimmed),
       avatarEmoji: newAvatarUrl ? null : newAvatarEmoji,
       avatarUrl: newAvatarUrl || null,
-      email: `${trimmed.toLowerCase().replace(/\s+/g, ".")}@vaultflow.io`,
+      email: email,
     };
 
     setMembersList([...membersList, newMember]);
@@ -128,11 +146,26 @@ export default function EditParticipantsModal({ isOpen, onClose, group, onSave }
     setActiveAvatarPickerId(null);
   };
 
-  const handleRemoveParticipant = (id) => {
+  const handleRemoveParticipant = async (id) => {
     if (membersList.length <= 1) {
       alert("A group must have at least 1 participant.");
       return;
     }
+
+    if (!window.confirm("Are you sure you want to remove this member from the group?")) {
+      return;
+    }
+
+    if (group?.id) {
+      try {
+        await removeMember(group.id, id);
+      } catch (err) {
+        console.error("DELETE /members error:", err);
+        setErrorMessage(err.response?.data?.detail || err.response?.data?.message || err.message || "Failed to remove member");
+        return;
+      }
+    }
+
     setMembersList(membersList.filter((m) => m.id !== id));
   };
 
@@ -188,6 +221,14 @@ export default function EditParticipantsModal({ isOpen, onClose, group, onSave }
           </div>
 
           <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+            {errorMessage && (
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center justify-between">
+                <span>{errorMessage}</span>
+                <button onClick={() => setErrorMessage("")} className="p-1 hover:bg-rose-100 rounded-lg">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* ADD NEW PARTICIPANT ROW */}
             <form onSubmit={handleAddParticipant} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
