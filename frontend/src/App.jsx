@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import Expenses from "./pages/Expenses";
 import GroupExpensePage from "./pages/GroupExpensePage";
+import GroupMembersPage from "./pages/GroupMembersPage";
 import AddExpensePage from "./pages/AddExpensePage";
 import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
@@ -60,6 +61,7 @@ function App() {
           <Route path="accounts" element={<Accounts />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="groups/:groupId" element={<GroupExpensePage />} />
+          <Route path="groups/:groupId/members" element={<GroupMembersPage />} />
           <Route path="groups/:groupId/add-expense" element={<AddExpensePage />} />
           <Route path="expenses/add" element={<AddExpensePage />} />
           <Route path="budget" element={<Budget />} />

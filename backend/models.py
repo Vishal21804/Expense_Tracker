@@ -37,7 +37,11 @@ class Expense(Base):
 
     # NEW COLUMNS
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
-    paid_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    paid_by = Column(
+        Integer,
+        ForeignKey("group_members.id"),
+        nullable=True
+        )
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     split_method = Column(String(30), default="Equal")
     status = Column(String(30), default="Pending")
@@ -52,9 +56,9 @@ class Expense(Base):
     group = relationship("Group")
 
     payer = relationship(
-        "User",
+        "GroupMember",
         foreign_keys=[paid_by]
-    )
+        )
 
     account = relationship("Account")
 
@@ -129,15 +133,19 @@ class GroupMember(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    member_name = Column(String(100), nullable=False)
+
+    member_email = Column(String(100), nullable=True)
+
+    phone = Column(String(20), nullable=True)
 
     joined_at = Column(DateTime, default=datetime.utcnow)
 
-    group = relationship("Group", back_populates="members")
-    user = relationship(
-        "User",
-        foreign_keys=[user_id]
-        )
+    group = relationship(
+        "Group",
+        back_populates="members"
+    )
 
 
 

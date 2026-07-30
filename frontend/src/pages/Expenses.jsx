@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   Plus,
@@ -11,7 +11,6 @@ import {
   Search,
   ChevronRight,
   Sparkles,
-  ShieldCheck,
   Building2,
   Plane,
   Briefcase,
@@ -19,10 +18,25 @@ import {
   FolderPlus,
   CheckCircle2,
   AlertTriangle,
+  Filter,
+  ChevronDown,
+  X,
+  Check,
 } from "lucide-react";
 import { getGroups, updateGroup, createGroup, deleteGroup } from "../services/groupsApi";
 import EditGroupModal, { getGroupColorTheme } from "../components/EditGroupModal";
 import CreateGroupModal from "../components/CreateGroupModal";
+
+// Category options configuration
+const CATEGORY_OPTIONS = [
+  { id: "All", label: "All Categories", icon: null },
+  { id: "Home", label: "Home", icon: "🏠" },
+  { id: "Travel", label: "Travel", icon: "🏖" },
+  { id: "Work", label: "Work", icon: "💼" },
+  { id: "Event", label: "Event", icon: "🎉" },
+  { id: "Food", label: "Food", icon: "🍕" },
+  { id: "General", label: "General", icon: "⚡" },
+];
 
 // Currency Formatter
 const formatCurrency = (amount) => {
@@ -39,9 +53,24 @@ const ExpensesHome = () => {
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+
+  const filterDropdownRef = useRef(null);
 
   const [editingGroup, setEditingGroup] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Close filter dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Toast notification state
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -83,12 +112,12 @@ const ExpensesHome = () => {
       const newGroup = await createGroup(groupData);
       if (newGroup) {
         setGroups((prev) => [newGroup, ...prev]);
-        showToast("Group created successfully!", "success");
+        showToast("Group created successfully.", "success");
+        navigate(`/groups/${newGroup.id}/members`);
         return newGroup;
       }
     } catch (err) {
       console.error("Failed to create group:", err);
-      showToast(err.response?.data?.message || err.message || "Failed to create group", "error");
       throw err;
     }
   };
@@ -108,9 +137,21 @@ const ExpensesHome = () => {
     loadGroups();
   }, []);
 
-  const filteredGroups = groups.filter((g) =>
-    (g.name || "").toLowerCase().includes(searchQuery.toLowerCase().trim())
-  );
+  const filteredGroups = useMemo(() => {
+    let result = groups;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((g) => (g.name || "").toLowerCase().includes(q));
+    }
+    if (selectedCategory && selectedCategory !== "All") {
+      result = result.filter(
+        (g) =>
+          (g.category || g.type || "General").toLowerCase() ===
+          selectedCategory.toLowerCase()
+      );
+    }
+    return result;
+  }, [groups, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen text-slate-800 dark:text-slate-100 space-y-6 max-w-7xl mx-auto pb-12 font-sans">
@@ -142,22 +183,86 @@ const ExpensesHome = () => {
         </div>
       </div>
 
-      {/* SEARCH BAR & CONTROLS */}
-      <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="relative flex items-center w-full max-w-md">
+      {/* SEARCH BAR & CATEGORY FILTER */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div className="relative flex items-center w-full flex-1">
           <Search className="absolute left-3.5 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search groups by name..."
-            className="w-full py-2.5 pl-10 pr-4 text-xs sm:text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-violet-500 focus:outline-none transition-all placeholder-slate-400"
+            className="w-full py-2.5 pl-10 pr-9 text-xs sm:text-sm text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-violet-500 focus:outline-none transition-all placeholder-slate-400"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-semibold">
-          <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          <span>Real-time split sync active</span>
+        {/* COOL CUSTOM GROUP CATEGORY FILTER DROPDOWN */}
+        <div className="relative w-full sm:w-auto shrink-0" ref={filterDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsFilterDropdownOpen((prev) => !prev)}
+            className={`w-full sm:w-auto flex items-center justify-between gap-2.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold border transition-all cursor-pointer shadow-xs ${
+              selectedCategory !== "All"
+                ? "bg-gradient-to-r from-violet-600 via-violet-700 to-purple-600 text-white border-violet-500 shadow-violet-500/20"
+                : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Filter className={`w-3.5 h-3.5 ${selectedCategory !== "All" ? "text-white" : "text-violet-500"}`} />
+              <span>
+                {(() => {
+                  const opt = CATEGORY_OPTIONS.find((c) => c.id.toLowerCase() === selectedCategory.toLowerCase());
+                  return `${opt?.icon ? opt.icon + " " : ""}${opt?.label || "All Categories"}`;
+                })()}
+              </span>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isFilterDropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          <AnimatePresence>
+            {isFilterDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 mt-2 w-full sm:w-52 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-2xl z-30 p-1.5 space-y-1"
+              >
+                {CATEGORY_OPTIONS.map((cat) => {
+                  const isSelected = selectedCategory.toLowerCase() === cat.id.toLowerCase();
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(cat.id);
+                        setIsFilterDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {cat.icon && <span>{cat.icon}</span>}
+                        <span>{cat.label}</span>
+                      </span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 stroke-[3]" />}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

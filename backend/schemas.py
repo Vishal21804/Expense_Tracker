@@ -77,6 +77,25 @@ class AccountResponse(AccountBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+
+class GroupMemberBase(BaseModel):
+    member_name: str
+    member_email: str | None = None
+    phone: str | None = None
+
+
+class GroupMemberCreate(GroupMemberBase):
+    pass
+
+
+class GroupMemberResponse(GroupMemberBase):
+    id: int
+    group_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class GroupBase(BaseModel):
     name: str
     description: str | None = None
@@ -89,8 +108,7 @@ class GroupBase(BaseModel):
 
 
 class GroupCreate(GroupBase):
-    pass
-
+    members: list[GroupMemberCreate]
 
 class GroupUpdate(GroupBase):
     pass
@@ -99,37 +117,8 @@ class GroupUpdate(GroupBase):
 class GroupResponse(GroupBase):
     id: int
     created_by: int
+    members: list[GroupMemberResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class GroupMemberCreate(BaseModel):
-    user_id: int
-
-
-class GroupMemberResponse(BaseModel):
-    id: int
-    group_id: int
-    user_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-class GroupMemberInvite(BaseModel):
-    email: EmailStr
-
-
-class GroupMemberDetails(BaseModel):
-    id: int
-    user_id: int
-    name: str
-    email: EmailStr
-
-    model_config = ConfigDict(from_attributes=True)
-
-class GroupMemberAdded(BaseModel):
-    id: int
-    user_id: int
-    name: str
-    email: EmailStr
-
-    model_config = ConfigDict(from_attributes=True)
