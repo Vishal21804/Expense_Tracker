@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
+from datetime import date
 
 
 class UserRegister(BaseModel):
@@ -10,6 +11,21 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class ExpenseItemConsumerCreate(BaseModel):
+    member_id: int
+    quantity_consumed: int
+    amount: float
+
+
+class ExpenseItemCreate(BaseModel):
+    item_name: str
+    unit_price: float
+    quantity: int
+    total_price: float
+
+    consumers: list[ExpenseItemConsumerCreate]
 
 
 class ExpenseBase(BaseModel):
@@ -24,15 +40,14 @@ class ExpenseBase(BaseModel):
     account_id: int | None = None
 
     split_method: str = "Equal"
-    status: str = "Pending"
 
 
 class ExpenseCreate(ExpenseBase):
-    pass
+    items: list[ExpenseItemCreate] = []
 
 
 class ExpenseUpdate(ExpenseBase):
-    pass
+    items: list[ExpenseItemCreate] = []
 
 
 class ExpenseResponse(ExpenseBase):
@@ -78,7 +93,6 @@ class AccountResponse(AccountBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 class GroupMemberBase(BaseModel):
     member_name: str
     member_email: str | None = None
@@ -110,6 +124,7 @@ class GroupBase(BaseModel):
 class GroupCreate(GroupBase):
     members: list[GroupMemberCreate]
 
+
 class GroupUpdate(GroupBase):
     pass
 
@@ -122,3 +137,54 @@ class GroupResponse(GroupBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ExpenseItemConsumerResponse(BaseModel):
+    member_id: int
+    member_name: str
+    quantity_consumed: int
+    amount: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExpenseItemResponse(BaseModel):
+    id: int
+    item_name: str
+    unit_price: float
+    quantity: int
+    total_price: float
+
+    consumers: list[ExpenseItemConsumerResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExpenseDetailsResponse(BaseModel):
+    id: int
+    title: str
+    amount: float
+    category: str
+    description: str | None
+    date: date
+
+    group_id: int
+    paid_by: int
+    account_id: int
+
+    split_method: str
+
+    items: list[ExpenseItemResponse]
+
+    class Config:
+        from_attributes = True
+
+
+class ExpenseUpdate(BaseModel):
+    title: str
+    amount: float
+    category: str
+    description: str | None = None
+    date: date
+    paid_by: int
+    account_id: int
+    split_method: str
+    items: list[ExpenseItemCreate] = []

@@ -206,7 +206,6 @@ export const mapExpenseFromBackend = (item) => {
     paidFromAccount: item.paid_from_account || item.paidFromAccount || "Cash",
     splitMethod: item.split_method || item.splitMethod || "Equal",
     date: item.date || item.expense_date || new Date().toISOString().split("T")[0],
-    status: item.status || "Paid",
     description: item.description || "",
     billImageUrl: item.bill_image_url || item.billImageUrl || null,
     members: Array.isArray(item.members) ? item.members : [],
@@ -273,74 +272,104 @@ export const getGroupById = async (groupId) => {
 };
 
 export const getExpensesByGroup = async (groupId) => {
+  const gId = typeof groupId === "object" ? (groupId.groupId || groupId.group_id || groupId.id) : groupId;
   try {
-    const response = await api.get(`/groups/${groupId}/expenses`);
-    const raw = Array.isArray(response.data) ? response.data : response.data?.expenses || [];
+    const response = await api.get(`/expenses/groups/${gId}/expenses`);
+    const raw = Array.isArray(response.data) ? response.data : response.data?.expenses || response.data?.data || [];
     return raw.map(mapExpenseFromBackend).filter(Boolean);
-  } catch {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const all = getStoredExpenses().map(mapExpenseFromBackend);
-    if (!groupId || groupId === "all") return all;
-    return all.filter((e) => String(e.groupId) === String(groupId));
+  } catch (error) {
+    console.error(`GET /expenses/groups/${gId}/expenses error:`, error);
+    try {
+      const resp2 = await api.get(`/groups/${gId}/expenses`);
+      const raw2 = Array.isArray(resp2.data) ? resp2.data : resp2.data?.expenses || [];
+      return raw2.map(mapExpenseFromBackend).filter(Boolean);
+    } catch {
+      return [];
+    }
   }
 };
 
-export const createExpense = async (expenseData) => {
+export const createExpense = async (groupId, expenseData) => {
+  let gId = groupId;
+  let rawPayload = expenseData;
+
+  if (typeof groupId === "object") {
+    rawPayload = groupId;
+    gId = rawPayload?.groupId || rawPayload?.group_id || rawPayload?.id;
+  }
+
+  if (!gId) {
+    throw new Error("groupId is required to create expense");
+  }
+
+  // Map to exact FastAPI ExpenseCreate schema expected by backend
+  const payload = {
+    title: rawPayload.title || rawPayload.expenseName || "",
+    amount: Number(rawPayload.amount || rawPayload.totalAmount || 0),
+    category: rawPayload.category || "",
+    description: rawPayload.description || "",
+    date: rawPayload.date || new Date().toISOString().split("T")[0],
+    paid_by: typeof rawPayload.paid_by === "object" ? Number(rawPayload.paid_by.id) : Number(rawPayload.paid_by || rawPayload.paidById || 1),
+    account_id: typeof rawPayload.account_id === "object" ? Number(rawPayload.account_id.id) : Number(rawPayload.account_id || rawPayload.accountId || 1),
+    split_method: rawPayload.split_method || rawPayload.splitMethod || "Equal",
+  };
+
+  if ((payload.split_method === "Item-wise" || rawPayload.split_method === "Item-wise") && Array.isArray(rawPayload.items)) {
+    payload.items = rawPayload.items;
+  }
+
+  console.log("POST URL:", `/expenses/groups/${gId}/expenses`);
+  console.log("POST PAYLOAD:");
+  console.log(JSON.stringify(payload, null, 2));
+
   try {
-    const response = await api.post("/expenses", expenseData);
+    console.log("Sending POST request...");
+    const response = await api.post(`/expenses/groups/${gId}/expenses`, payload);
+    console.log("POST Success:", response.data);
     return mapExpenseFromBackend(response.data);
-  } catch {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const allExp = getStoredExpenses().map(mapExpenseFromBackend);
-    const newExp = {
-      id: `exp-${Date.now()}`,
-      ...expenseData,
-      createdAt: new Date().toISOString(),
-    };
-    const updatedExp = [newExp, ...allExp];
-    saveStoredExpenses(updatedExp);
-
-    // Update group metrics in stored groups
-    const allGroups = getStoredGroups();
-    const updatedGroups = allGroups.map((g) => {
-      if (String(g.id) === String(expenseData.groupId)) {
-        return {
-          ...g,
-          totalExpenses: (g.totalExpenses || 0) + Number(expenseData.amount || 0),
-          expensesCount: (g.expensesCount || 0) + 1,
-        };
-      }
-      return g;
-    });
-    saveStoredGroups(updatedGroups);
-
-    return newExp;
+  } catch (error) {
+    console.error("POST Failed");
+    console.error(error.response?.status);
+    console.error(error.response?.data);
+    throw error;
   }
 };
 
-export const updateExpense = async (id, expenseData) => {
+export const updateExpense = async (groupId, expenseId, expenseData) => {
+  let gId = groupId;
+  let eId = expenseId;
+  let payload = expenseData;
+
+  if (typeof expenseData === "undefined") {
+    payload = expenseId;
+    eId = groupId;
+    gId = payload?.groupId || payload?.group_id || "";
+  }
+
   try {
-    const response = await api.put(`/expenses/${id}`, expenseData);
+    const response = await api.put(`/expenses/groups/${gId}/expenses/${eId}`, payload);
     return mapExpenseFromBackend(response.data);
-  } catch {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const all = getStoredExpenses().map(mapExpenseFromBackend);
-    const updated = all.map((item) => (String(item.id) === String(id) ? { ...item, ...expenseData } : item));
-    saveStoredExpenses(updated);
-    return updated.find((item) => String(item.id) === String(id));
+  } catch (error) {
+    console.error(`PUT /expenses/groups/${gId}/expenses/${eId} error:`, error);
+    throw error;
   }
 };
 
-export const deleteExpense = async (id) => {
+export const deleteExpense = async (groupId, expenseId) => {
+  let gId = groupId;
+  let eId = expenseId;
+
+  if (typeof expenseId === "undefined") {
+    eId = groupId;
+    gId = "";
+  }
+
   try {
-    await api.delete(`/expenses/${id}`);
+    await api.delete(`/expenses/groups/${gId}/expenses/${eId}`);
     return true;
-  } catch {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const all = getStoredExpenses().map(mapExpenseFromBackend);
-    const updated = all.filter((item) => String(item.id) !== String(id));
-    saveStoredExpenses(updated);
-    return true;
+  } catch (error) {
+    console.error(`DELETE /expenses/groups/${gId}/expenses/${eId} error:`, error);
+    throw error;
   }
 };
 
@@ -394,5 +423,15 @@ export const createGroup = async (groupData) => {
     const updatedGroups = [newGroup, ...allGroups];
     saveStoredGroups(updatedGroups);
     return newGroup;
+  }
+};
+
+export const getExpenseDetails = async (groupId, expenseId) => {
+  try {
+    const response = await api.get(`/expenses/groups/${groupId}/expenses/${expenseId}/details`);
+    return response.data;
+  } catch (error) {
+    console.error(`GET /expenses/groups/${groupId}/expenses/${expenseId}/details error:`, error);
+    return null;
   }
 };

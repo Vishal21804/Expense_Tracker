@@ -44,7 +44,6 @@ class Expense(Base):
         )
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     split_method = Column(String(30), default="Equal")
-    status = Column(String(30), default="Pending")
 
     # RELATIONSHIPS
     user = relationship(
@@ -61,6 +60,12 @@ class Expense(Base):
         )
 
     account = relationship("Account")
+
+    items = relationship(
+        "ExpenseItem",
+        back_populates="expense",
+        cascade="all, delete-orphan"
+        )
 
 
 class Budget(Base):
@@ -148,4 +153,64 @@ class GroupMember(Base):
     )
 
 
+class ExpenseItem(Base):
+    __tablename__ = "expense_items"
 
+    id = Column(Integer, primary_key=True, index=True)
+
+    expense_id = Column(
+        Integer,
+        ForeignKey("expenses.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    item_name = Column(String(255), nullable=False)
+
+    unit_price = Column(Float, nullable=False)
+
+    quantity = Column(Integer, default=1)
+
+    total_price = Column(Float, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    expense = relationship(
+        "Expense",
+        back_populates="items"
+    )
+
+    consumers = relationship(
+        "ExpenseItemConsumer",
+        back_populates="item",
+        cascade="all, delete"
+    )
+
+class ExpenseItemConsumer(Base):
+    __tablename__ = "expense_item_consumers"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    item_id = Column(
+        Integer,
+        ForeignKey("expense_items.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    member_id = Column(
+        Integer,
+        ForeignKey("group_members.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    quantity_consumed = Column(Integer)
+
+    amount = Column(Float)
+
+    item = relationship(
+        "ExpenseItem",
+        back_populates="consumers"
+    )
+
+    member = relationship(
+        "GroupMember"
+    )

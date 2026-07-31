@@ -33,14 +33,17 @@ export default function EditParticipantsModal({ isOpen, onClose, group, onSave }
   useEffect(() => {
     if (group && Array.isArray(group.members)) {
       setMembersList(
-        group.members.map((m) => ({
-          id: m.id || `m-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          name: m.name || "Participant",
-          avatar: m.avatar || getInitials(m.name),
-          avatarEmoji: m.avatarEmoji || (AVATAR_PRESETS.includes(m.avatar) ? m.avatar : null),
-          avatarUrl: m.avatarUrl || null,
-          email: m.email || `${(m.name || "user").toLowerCase().replace(/\s+/g, ".")}@vaultflow.io`,
-        }))
+        group.members.map((m) => {
+          const mName = m.member_name || m.name || "Participant";
+          return {
+            id: m.id || `m-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            name: mName,
+            avatar: m.avatar || getInitials(mName),
+            avatarEmoji: m.avatarEmoji || (AVATAR_PRESETS.includes(m.avatar) ? m.avatar : null),
+            avatarUrl: m.avatarUrl || null,
+            email: m.member_email || m.email || `${mName.toLowerCase().replace(/\s+/g, ".")}@vaultflow.io`,
+          };
+        })
       );
     }
   }, [group, isOpen]);

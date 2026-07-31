@@ -36,6 +36,8 @@ import {
   getGroupById,
   createExpense,
 } from "../services/expensesApi";
+import { getMembers } from "../services/groupsApi";
+import { getAccounts } from "../services/accountsApi";
 
 // Category configurations with icons
 const CATEGORIES = [
@@ -52,10 +54,10 @@ const CATEGORIES = [
 ];
 
 const DEFAULT_MEMBERS = [
-  { id: "m1", name: "Alex Morgan", avatar: "AM", icon: User },
-  { id: "m2", name: "Hari", avatar: "HA", icon: User },
-  { id: "m3", name: "Balaji", avatar: "BA", icon: User },
-  { id: "m4", name: "Sedhu", avatar: "SE", icon: User },
+  { id: "m1", member_name: "Alex Morgan", avatar: "AM", icon: User },
+  { id: "m2", member_name: "Hari", avatar: "HA", icon: User },
+  { id: "m3", member_name: "Balaji", avatar: "BA", icon: User },
+  { id: "m4", member_name: "Sedhu", avatar: "SE", icon: User },
 ];
 
 const ACCOUNTS = [
@@ -91,9 +93,9 @@ const CustomSelect = ({ options, value, onChange, placeholder = "Select option" 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedOption = value ? options.find((opt) => (opt.name || opt) === value) : null;
+  const selectedOption = value ? options.find((opt) => (opt.member_name || opt.name || opt) === value) : null;
   const Icon = selectedOption?.icon;
-  const displayName = selectedOption ? (selectedOption.name || selectedOption) : placeholder;
+  const displayName = selectedOption ? (selectedOption.member_name || selectedOption.name || selectedOption) : placeholder;
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
@@ -125,7 +127,7 @@ const CustomSelect = ({ options, value, onChange, placeholder = "Select option" 
             className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-56 overflow-y-auto bg-[#1F2937] border border-slate-700 rounded-2xl shadow-2xl p-1.5 space-y-0.5"
           >
             {options.map((opt) => {
-              const val = opt.name || opt;
+              const val = opt.member_name || opt.name || opt;
               const OptIcon = opt.icon || User;
               const isSelected = val === value;
 
@@ -517,7 +519,7 @@ const AddExpensePage = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Split Information
-  const [selectedMembers, setSelectedMembers] = useState(["Alex Morgan", "Hari", "Balaji", "Sedhu"]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
   const [splitMethod, setSplitMethod] = useState("Equal");
   const [memberPercentages, setMemberPercentages] = useState({});
   const [memberCustomAmounts, setMemberCustomAmounts] = useState({});
@@ -525,28 +527,66 @@ const AddExpensePage = () => {
   // Item-wise Split Items List (With Per-Member Quantity)
   const [itemsList, setItemsList] = useState([]);
 
+  const [accountsList, setAccountsList] = useState(ACCOUNTS);
+  const [rawMembersList, setRawMembersList] = useState([]);
+  const [rawAccountsList, setRawAccountsList] = useState([]);
+
   useEffect(() => {
     // Automatically set current live time on page mount
     const d = new Date();
     const currentLiveTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     setTime(currentLiveTime);
 
-    const loadGroup = async () => {
-      const gData = await getGroupById(groupId);
-      setGroup(gData);
-      if (gData && gData.members && gData.members.length > 0) {
-        setSelectedMembers(gData.members.map((m) => m.name));
+    const loadGroupAndDependencies = async () => {
+      try {
+        const gData = await getGroupById(groupId);
+        let membersData = [];
+        try {
+          membersData = await getMembers(groupId);
+        } catch (mErr) {
+          console.error("Failed to load members:", mErr);
+        }
+
+        const validMembers = Array.isArray(membersData) && membersData.length > 0
+          ? membersData
+          : (gData?.members || []);
+
+        setRawMembersList(validMembers);
+        setGroup({
+          ...(gData || {}),
+          members: validMembers,
+        });
+
+        if (validMembers.length > 0) {
+          const memberNames = validMembers.map((m) => m.member_name || m.name || "Member");
+          setSelectedMembers(memberNames);
+          setPaidBy((prev) => prev || memberNames[0]);
+        }
+
+        const fetchedAccounts = await getAccounts();
+        if (Array.isArray(fetchedAccounts) && fetchedAccounts.length > 0) {
+          setRawAccountsList(fetchedAccounts);
+          const mappedAccs = fetchedAccounts.map((a) => ({
+            id: a.id,
+            name: a.name || a.account_name,
+            icon: a.type === "UPI" ? QrCode : a.type === "Credit Card" ? CreditCard : a.type === "Cash" ? Banknote : Building2,
+          }));
+          setAccountsList(mappedAccs);
+          setPaidFromAccount((prev) => prev || mappedAccs[0].name);
+        }
+      } catch (err) {
+        console.error("Error loading group details:", err);
       }
     };
-    loadGroup();
+    loadGroupAndDependencies();
   }, [groupId]);
 
   // Combine base members and dynamically added participants
   const groupMembersList = useMemo(() => {
-    const base = group?.members || DEFAULT_MEMBERS;
-    const existingNames = new Set(base.map((m) => (m.name || m).toLowerCase()));
+    const base = (group?.members && group.members.length > 0) ? group.members : DEFAULT_MEMBERS;
+    const existingNames = new Set(base.map((m) => (m.member_name || m.name || m).toLowerCase()));
     const extraCustoms = customParticipants.filter(
-      (c) => !existingNames.has(c.name.toLowerCase())
+      (c) => !existingNames.has((c.member_name || c.name || "").toLowerCase())
     );
     return [...base, ...extraCustoms];
   }, [group, customParticipants]);
@@ -572,11 +612,12 @@ const AddExpensePage = () => {
 
     const newMemberObj = {
       id: `custom-${Date.now()}`,
+      member_name: trimmed,
       name: trimmed,
       avatar: trimmed.substring(0, 2).toUpperCase(),
     };
 
-    if (!customParticipants.some((p) => p.name.toLowerCase() === trimmed.toLowerCase())) {
+    if (!customParticipants.some((p) => (p.member_name || p.name || "").toLowerCase() === trimmed.toLowerCase())) {
       setCustomParticipants((prev) => [...prev, newMemberObj]);
     }
 
@@ -828,32 +869,89 @@ const AddExpensePage = () => {
     setIsSubmitting(true);
     try {
       const totalNum = Number(amount);
-      const membersPayload = memberBreakdown.map((m) => ({
-        id: `m-${Math.random().toString(36).substring(2, 7)}`,
-        name: m.name,
-        shareAmount: m.shareAmount,
-        percentage: m.percentage,
-        status: m.name === paidBy ? "Paid" : "Pending",
-        paidAmount: m.name === paidBy ? m.shareAmount : 0,
-      }));
 
-      await createExpense({
-        groupId: groupId,
-        groupName: group?.name || "Bachelor Room",
+      // Find selected member object strictly from rawMembersList database records
+      const selectedMemberObj = rawMembersList.find(
+        (m) =>
+          String(m.id) === String(paidBy) ||
+          (m.member_name || m.name || "").toLowerCase().trim() === String(paidBy || "").toLowerCase().trim()
+      );
+      if (!selectedMemberObj || !selectedMemberObj.id) {
+        alert("Error: Selected payer is not a valid group member.");
+        setIsSubmitting(false);
+        return;
+      }
+      const paidById = Number(selectedMemberObj.id);
+
+      // Find selected account object from rawAccountsList
+      const selectedAccountObj = rawAccountsList.find(
+        (a) =>
+          String(a.id) === String(paidFromAccount) ||
+          (a.name || a.account_name || "").toLowerCase().trim() === String(paidFromAccount || "").toLowerCase().trim()
+      );
+      const accountId = selectedAccountObj?.id ? Number(selectedAccountObj.id) : 1;
+
+      // Construct items array payload if splitMethod is Item-wise
+      let itemsPayload = [];
+      if (splitMethod === "Item-wise" && Array.isArray(itemsList) && itemsList.length > 0) {
+        itemsPayload = itemsList.map((item) => {
+          const unitPrice = Number(item.price || item.unitPrice || item.unit_price || 0);
+          const totalItemQty = Number(item.qty || item.quantity || 1);
+          const totalPrice = Number(item.total_price || item.totalPrice || (unitPrice * totalItemQty));
+
+          const consumers = [];
+          Object.entries(item.memberQty || {}).forEach(([mName, qtyConsumed]) => {
+            const numQty = Number(qtyConsumed || 0);
+            if (numQty > 0) {
+              // Match member STRICTLY from rawMembersList database records
+              const matchedMem = rawMembersList.find(
+                (rm) =>
+                  String(rm.id) === String(mName) ||
+                  (rm.member_name || rm.name || "").toLowerCase().trim() === String(mName).toLowerCase().trim()
+              );
+
+              if (matchedMem && matchedMem.id) {
+                const memberId = Number(matchedMem.id);
+                const consumerAmount = Math.round(numQty * unitPrice * 100) / 100;
+
+                consumers.push({
+                  member_id: memberId,
+                  quantity_consumed: numQty,
+                  amount: consumerAmount,
+                });
+              }
+            }
+          });
+
+          return {
+            item_name: item.name || item.title || item.item_name || "Item",
+            unit_price: unitPrice,
+            quantity: totalItemQty,
+            total_price: totalPrice,
+            consumers: consumers,
+          };
+        });
+      }
+
+      const expensePayload = {
         title: title.trim(),
-        category,
         amount: totalNum,
-        description,
+        category,
+        description: description.trim(),
         date,
-        time,
-        billImageUrl: filePreviewUrl || null,
-        expenseType: "Group",
-        paidBy,
-        paidFromAccount,
-        splitMethod,
-        status: "Pending",
-        members: membersPayload,
-      });
+        paid_by: paidById,
+        account_id: accountId,
+        split_method: splitMethod,
+        ...(splitMethod === "Item-wise" && itemsPayload.length > 0 ? { items: itemsPayload } : {}),
+      };
+
+      // 5. Add console logs before calling createExpense()
+      console.log("Raw Members:", rawMembersList);
+      console.log("Selected Members:", selectedMembers);
+      console.log("Items Payload:", JSON.stringify(itemsPayload, null, 2));
+      console.log("Expense Payload:", JSON.stringify(expensePayload, null, 2));
+
+      await createExpense(groupId, expensePayload);
 
       // Redirect back to group page where the expense appears immediately!
       navigate(`/groups/${groupId}`);
@@ -1013,7 +1111,7 @@ const AddExpensePage = () => {
                   Paid From *
                 </label>
                 <CustomSelect
-                  options={ACCOUNTS}
+                  options={accountsList}
                   value={paidFromAccount}
                   onChange={setPaidFromAccount}
                   placeholder="Select Account"
@@ -1152,10 +1250,11 @@ const AddExpensePage = () => {
 
               <div className="grid grid-cols-2 gap-2.5">
                 {groupMembersList.map((m) => {
-                  const mName = m.name || m;
+                  const mName = typeof m === "string" ? m : String(m.member_name || m.name || "Member");
                   const isSelected = selectedMembers.includes(mName);
                   const breakdown = memberBreakdown.find((b) => b.name === mName);
                   const calculatedShare = breakdown ? breakdown.shareAmount : 0;
+                  const avatarText = typeof m === "object" && typeof m.avatar === "string" ? m.avatar : mName.substring(0, 2).toUpperCase();
 
                   return (
                     <button
@@ -1170,7 +1269,7 @@ const AddExpensePage = () => {
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-violet-600 to-purple-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                          {m.avatar || mName.substring(0, 2).toUpperCase()}
+                          {avatarText}
                         </div>
                         <div className="min-w-0 leading-tight">
                           <span className="font-bold text-xs text-white block truncate">

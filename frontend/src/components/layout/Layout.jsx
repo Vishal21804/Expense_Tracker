@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { LuMenu } from "react-icons/lu";
 import Sidebar from "./Sidebar";
@@ -9,6 +9,7 @@ const Layout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
+  const outlet = useOutlet();
 
   const isExpenseSection =
     location.pathname.startsWith("/expenses") ||
@@ -62,16 +63,16 @@ const Layout = () => {
               : "px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 lg:pt-10 pb-8 max-w-7xl"
           }`}
         >
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="w-full h-full"
             >
-              <Outlet />
+              {outlet}
             </motion.div>
           </AnimatePresence>
         </main>

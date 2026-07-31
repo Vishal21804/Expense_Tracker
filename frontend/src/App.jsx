@@ -9,10 +9,13 @@ import Expenses from "./pages/Expenses";
 import GroupExpensePage from "./pages/GroupExpensePage";
 import GroupMembersPage from "./pages/GroupMembersPage";
 import AddExpensePage from "./pages/AddExpensePage";
+import SettlementPage from "./pages/SettlementPage";
 import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+import EditGroupExpensePage from "./pages/EditGroupExpensePage";
 
 // Minimal Route Shell Indicators (Placeholders until full feature pages are requested)
 const RoutePlaceholder = ({ title, description, icon }) => (
@@ -63,6 +66,8 @@ function App() {
           <Route path="groups/:groupId" element={<GroupExpensePage />} />
           <Route path="groups/:groupId/members" element={<GroupMembersPage />} />
           <Route path="groups/:groupId/add-expense" element={<AddExpensePage />} />
+          <Route path="groups/:groupId/expenses/:expenseId/edit" element={<EditGroupExpensePage />} />
+          <Route path="groups/:groupId/settlement" element={<SettlementPage />} />
           <Route path="expenses/add" element={<AddExpensePage />} />
           <Route path="budget" element={<Budget />} />
           <Route path="analytics" element={<Analytics />} />
